@@ -1,0 +1,18 @@
+# Python
+__pycache__/
+*.pyc
+*.sqlite3
+venv/
+
+# Node.js
+node_modules/
+.nuxt/
+.output/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.idea/
+.vscode/
