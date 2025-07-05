@@ -1,5 +1,6 @@
 export default defineNuxtConfig({
   devtools: { enabled: true },
+  ssr: false, // SSRを無効にする
   build: {
     transpile: ['vexflow'],
   },
