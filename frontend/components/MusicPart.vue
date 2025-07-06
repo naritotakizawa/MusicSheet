@@ -30,6 +30,7 @@
         <label class="form-label small mb-1">Part Name</label>
         <input type="text" v-model="editablePartName" @input="updatePartName" class="form-control form-control-sm">
       </div>
+      <button class="btn btn-secondary btn-sm mb-2" @click="copyPartJson">Copy JSON</button>
       <button class="btn btn-danger btn-sm" @click="deletePart">Delete Part</button>
     </div>
 
@@ -324,6 +325,20 @@ const openPartMenu = (event) => {
 
 const updatePartName = () => {
   emit('update:part', { ...props.part, name: editablePartName.value });
+};
+
+const getPartJson = () => {
+  return JSON.stringify(toRaw(props.part), null, 2);
+};
+
+const copyPartJson = async () => {
+  try {
+    await navigator.clipboard.writeText(getPartJson());
+    alert('Part JSON copied to clipboard');
+  } catch (err) {
+    console.error('Failed to copy JSON:', err);
+    alert(getPartJson());
+  }
 };
 
 const deletePart = () => {

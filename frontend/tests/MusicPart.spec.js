@@ -147,4 +147,10 @@ describe('MusicPart.vue', () => {
     expect(notes[0].rest).toBe(true)
     expect(notes[1].rest).toBe(false)
   })
+
+  it('returns JSON string of part', () => {
+    const wrapper = mount(MusicPart, { props: baseProps })
+    const json = wrapper.vm.getPartJson()
+    expect(JSON.parse(json)).toEqual(baseProps.part)
+  })
 })
