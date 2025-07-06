@@ -140,4 +140,11 @@ describe('MusicPart.vue', () => {
     expect(wrapper.vm.noteMenuVisible).toBe(true)
     expect(wrapper.vm.selectedNote.rest).toBe(true)
   })
+
+  it('parses rest flag correctly', () => {
+    const wrapper = mount(MusicPart, { props: baseProps })
+    const notes = wrapper.vm.parseNotesInput('B4/q/r, C4/q')
+    expect(notes[0].rest).toBe(true)
+    expect(notes[1].rest).toBe(false)
+  })
 })

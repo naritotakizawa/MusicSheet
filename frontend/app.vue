@@ -36,7 +36,9 @@ const fetchScore = async () => {
       scoreId.value = fetchedScore.id;
       parts.value = fetchedScore.parts.map(p => ({
         ...p,
-        notesInput: p.notes.map(n => `${n.pitch}/${n.duration}`).join(', ')
+        notesInput: p.notes
+          .map(n => `${n.pitch}/${n.duration}${n.rest ? '/r' : ''}`)
+          .join(', ')
       }));
     } else {
       // Create a new score if none exists
@@ -54,8 +56,8 @@ const createNewScore = async () => {
     const partsData = toRaw(parts.value).map(part => ({
       name: part.name,
       notes: part.notesInput.split(', ').map((note, index) => {
-        const [pitch, duration] = note.split('/');
-        return { pitch, duration, position: index };
+        const [pitch, duration, restFlag] = note.split('/');
+        return { pitch, duration, rest: restFlag === 'r', position: index };
       })
     }));
 
@@ -64,7 +66,9 @@ const createNewScore = async () => {
     // Update parts with IDs from the server response
     parts.value = response.data.parts.map(p => ({
       ...p,
-      notesInput: p.notes.map(n => `${n.pitch}/${n.duration}`).join(', ')
+      notesInput: p.notes
+        .map(n => `${n.pitch}/${n.duration}${n.rest ? '/r' : ''}`)
+        .join(', ')
     }));
   } catch (error) {
     console.error('Error creating new score:', error);
@@ -100,10 +104,13 @@ const updateScore = async () => {
     const partsData = toRaw(parts.value).map(part => ({
       id: part.id,
       name: part.name,
-      notes: (part.notesInput || '').split(', ').filter(n => n).map((note, index) => {
-        const [pitch, duration] = note.split('/');
-        return { pitch, duration, position: index };
-      })
+      notes: (part.notesInput || '')
+        .split(', ')
+        .filter(n => n)
+        .map((note, index) => {
+          const [pitch, duration, restFlag] = note.split('/');
+          return { pitch, duration, rest: restFlag === 'r', position: index };
+        })
     }));
     await $api.put(`/scores/${scoreId.value}/`, { title: 'My Music Sheet', parts: partsData });
   } catch (error) {
