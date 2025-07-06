@@ -9,8 +9,17 @@
     </div>
 
     <!-- Score Display (Right) -->
-    <div class="col-md-10">
+  <div class="col-md-10">
       <div class="score-wrapper" ref="scoreContainer"></div>
+      <div class="measure-numbers d-flex justify-content-between mt-1">
+        <div
+          v-for="measure in measures"
+          :key="measure.number"
+          class="measure-number"
+        >
+          {{ measure.number }}
+        </div>
+      </div>
     </div>
 
     <!-- Part Edit Popup -->
@@ -99,6 +108,7 @@ const menuPosition = ref({ x: 0, y: 0 });
 const selectedNote = ref(null);
 const editablePartName = ref(props.part.name);
 const renderedNotesInfo = ref([]); // To store info about rendered notes
+const measures = ref([]);
 
 // Helper to parse the notes string into an array of objects
 // Invalid or incomplete notes are ignored so that drawing never throws
@@ -193,10 +203,11 @@ const drawScore = async () => {
   const system = factory.System({ width: 900 });
 
   const notesArray = parseNotesInput(props.part.notesInput);
-  const measures = splitIntoMeasures(notesArray);
-  const notesString = measures
+  const measuresArray = splitIntoMeasures(notesArray);
+  measures.value = measuresArray.map((m, idx) => ({ number: idx + 1, notes: m }));
+  const notesString = measures.value
     .map(measure =>
-      measure
+      measure.notes
         .map(n => `${n.pitch}${n.octave}/${n.duration}${n.rest ? '/r' : ''}`)
         .join(', ')
     )
@@ -220,7 +231,7 @@ const drawScore = async () => {
 
   // After drawing, collect information about rendered notes
   renderedNotesInfo.value = [];
-  const allRenderedNotes = measures.flat();
+  const allRenderedNotes = measuresArray.flat();
   const rawVoice = toRaw(voice);
   if (rawVoice && typeof rawVoice.getTickables === 'function') {
     let renderedIdx = 0;
@@ -371,5 +382,10 @@ watch(() => props.part, () => {
 }
 .score-wrapper {
   min-height: 120px; /* Ensure wrapper has height for Vexflow to draw into */
+}
+.measure-number {
+  flex: 1;
+  text-align: center;
+  font-size: 0.8rem;
 }
 </style>

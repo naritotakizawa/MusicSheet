@@ -153,4 +153,21 @@ describe('MusicPart.vue', () => {
     const json = wrapper.vm.getPartJson()
     expect(JSON.parse(json)).toEqual(baseProps.part)
   })
+
+  it('displays measure numbers', async () => {
+    const wrapper = mount(MusicPart, {
+      props: {
+        part: {
+          name: 'Test Part',
+          notesInput: 'C4/q, D4/q, E4/q, F4/q, G4/q, A4/q, B4/q, C5/q'
+        },
+        partIndex: 0
+      }
+    })
+    await nextTick()
+    const labels = wrapper.findAll('.measure-number')
+    expect(labels).toHaveLength(2)
+    expect(labels[0].text()).toBe('1')
+    expect(labels[1].text()).toBe('2')
+  })
 })
