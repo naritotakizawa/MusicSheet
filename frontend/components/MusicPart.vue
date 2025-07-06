@@ -96,15 +96,72 @@ const editablePartName = ref(props.part.name);
 const renderedNotesInfo = ref([]); // To store info about rendered notes
 
 // Helper to parse the notes string into an array of objects
+// Invalid or incomplete notes are ignored so that drawing never throws
 const parseNotesInput = (notesInputString) => {
   if (!notesInputString || notesInputString.trim() === '') return [];
-  return notesInputString.split(',').map(noteString => {
-    const trimmed = noteString.trim();
-    const [pitchOctave, duration] = trimmed.split('/');
-    const pitch = pitchOctave.slice(0, -1);
-    const octave = parseInt(pitchOctave.slice(-1), 10);
-    return { pitch, octave, duration, originalString: trimmed };
+  return notesInputString
+    .replace(/\|/g, ',')
+    .split(',')
+    .map(noteString => {
+      const trimmed = noteString.trim();
+      if (!trimmed) return null;
+      const [pitchOctave, duration] = trimmed.split('/');
+      if (!pitchOctave || !duration) return null;
+      const pitch = pitchOctave.slice(0, -1);
+      const octave = parseInt(pitchOctave.slice(-1), 10);
+      if (!pitch || isNaN(octave)) return null;
+      return { pitch, octave, duration, originalString: trimmed };
+    })
+    .filter(Boolean)
+    .map((n, idx) => ({ ...n, noteIndex: idx }));
+};
+
+// Split parsed notes into measures of 4 beats (4/4). Missing beats are filled with a rest.
+const splitIntoMeasures = (notesArray) => {
+  const beatsPerMeasure = 4;
+  const durationMap = { w: 4, h: 2, q: 1, '8': 0.5, '16': 0.25 };
+  const measures = [];
+  let currentMeasure = [];
+  let currentBeats = 0;
+  let idx = 0;
+
+  const pushMeasure = () => {
+    if (currentBeats < beatsPerMeasure && currentBeats > 0) {
+      const remaining = beatsPerMeasure - currentBeats;
+      if (remaining === 4) {
+        currentMeasure.push({ pitch: 'B', octave: 4, duration: 'w', rest: true });
+      } else if (remaining === 2) {
+        currentMeasure.push({ pitch: 'B', octave: 4, duration: 'h', rest: true });
+      } else if (remaining === 1) {
+        currentMeasure.push({ pitch: 'B', octave: 4, duration: 'q', rest: true });
+      } // For simplicity other values are not handled
+    }
+    if (currentMeasure.length === 0) {
+      currentMeasure.push({ pitch: 'B', octave: 4, duration: 'w', rest: true });
+    }
+    measures.push(currentMeasure);
+    currentMeasure = [];
+    currentBeats = 0;
+  };
+
+  notesArray.forEach(note => {
+    const beats = durationMap[note.duration] || 0;
+    if (currentBeats + beats > beatsPerMeasure) {
+      pushMeasure();
+    }
+    currentMeasure.push({ ...note, originalIndex: idx });
+    currentBeats += beats;
+    if (currentBeats === beatsPerMeasure) {
+      pushMeasure();
+    }
+    idx += 1;
   });
+
+  if (currentMeasure.length || measures.length === 0) {
+    pushMeasure();
+  }
+
+  return measures;
 };
 
 const drawScore = async () => {
@@ -118,30 +175,47 @@ const drawScore = async () => {
   const score = factory.EasyScore();
   const system = factory.System({ width: 900 });
 
+  const notesArray = parseNotesInput(props.part.notesInput);
+  const measures = splitIntoMeasures(notesArray);
+  const notesString = measures
+    .map(measure =>
+      measure
+        .map(n => `${n.pitch}${n.octave}/${n.duration}${n.rest ? '/r' : ''}`)
+        .join(', ')
+    )
+    .join(' | ');
+
   let voice;
   try {
-    const notesString = props.part.notesInput && props.part.notesInput.trim() !== '' ? props.part.notesInput : 'B4/w/r';
-    const notes = score.notes(notesString, { stem: 'up' });
-    voice = score.voice(notes);
+    const parsedNotes = score.notes(notesString || 'B4/w/r', { stem: 'up' });
+    voice = score.voice(parsedNotes);
   } catch (e) {
     console.error(`Error parsing notes for part ${props.partIndex}:`, e);
-    const notes = score.notes('B4/w/r', { stem: 'up' }); // Fallback
-    voice = score.voice(notes);
+    const fallback = score.notes('B4/w/r', { stem: 'up' });
+    voice = score.voice(fallback);
   }
 
-  system.addStave({ voices: [voice] }).addClef('treble').addTimeSignature('4/4');
+  system.addStave({ voices: [voice] })
+    .addClef('treble')
+    .addTimeSignature('4/4');
+
   factory.draw();
 
   // After drawing, collect information about rendered notes
   renderedNotesInfo.value = [];
+  const allRenderedNotes = measures.flat();
   const rawVoice = toRaw(voice);
   if (rawVoice && typeof rawVoice.getTickables === 'function') {
-    rawVoice.getTickables().forEach((note, noteIndex) => {
-      if (note.getBoundingBox) {
+    let renderedIdx = 0;
+    rawVoice.getTickables().forEach((note) => {
+      if (note.getCategory && note.getCategory() === 'barnotes') return;
+      const noteData = allRenderedNotes[renderedIdx];
+      renderedIdx += 1;
+      if (noteData && !noteData.rest && note.getBoundingBox) {
         const bbox = note.getBoundingBox();
         if (bbox) {
           renderedNotesInfo.value.push({
-            noteIndex: noteIndex,
+            noteIndex: noteData.originalIndex,
             x: bbox.getX(),
             y: bbox.getY(),
             width: bbox.getW(),
@@ -189,10 +263,10 @@ const handleClickOnScore = (event, stave) => {
 
 const updateSelectedNote = () => {
   if (!selectedNote.value) return;
-  
+
   const notesArray = parseNotesInput(props.part.notesInput);
   const noteToUpdate = selectedNote.value;
-  
+
   notesArray[noteToUpdate.noteIndex] = {
     ...notesArray[noteToUpdate.noteIndex],
     pitch: noteToUpdate.pitch,
@@ -200,7 +274,11 @@ const updateSelectedNote = () => {
     duration: noteToUpdate.duration,
   };
 
-  const newNotesInput = notesArray.map(n => `${n.pitch}${n.octave}/${n.duration}`).join(', ');
+  const plainNotes = notesArray.map(n => ({ pitch: n.pitch, octave: n.octave, duration: n.duration }));
+  const newMeasures = splitIntoMeasures(plainNotes);
+  const newNotesInput = newMeasures
+    .map(m => m.map(n => `${n.pitch}${n.octave}/${n.duration}`).join(', '))
+    .join(' | ');
   emit('update:part', { ...props.part, notesInput: newNotesInput });
   closeMenus();
 };
@@ -211,7 +289,11 @@ const deleteSelectedNote = () => {
   const notesArray = parseNotesInput(props.part.notesInput);
   notesArray.splice(selectedNote.value.noteIndex, 1);
 
-  const newNotesInput = notesArray.map(n => `${n.pitch}${n.octave}/${n.duration}`).join(', ');
+  const plainNotes = notesArray.map(n => ({ pitch: n.pitch, octave: n.octave, duration: n.duration }));
+  const newMeasures = splitIntoMeasures(plainNotes);
+  const newNotesInput = newMeasures
+    .map(m => m.map(n => `${n.pitch}${n.octave}/${n.duration}`).join(', '))
+    .join(' | ');
   emit('update:part', { ...props.part, notesInput: newNotesInput });
   closeMenus();
 };
