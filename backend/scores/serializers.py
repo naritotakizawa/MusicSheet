@@ -4,7 +4,7 @@ from .models import Score, Part, Note
 class NoteSerializer(serializers.ModelSerializer):
     class Meta:
         model = Note
-        fields = ['id', 'pitch', 'duration', 'position']
+        fields = ['id', 'pitch', 'duration', 'position', 'rest']
 
 class PartSerializer(serializers.ModelSerializer):
     notes = NoteSerializer(many=True)
@@ -62,6 +62,7 @@ class ScoreSerializer(serializers.ModelSerializer):
                         note.pitch = note_data.get('pitch', note.pitch)
                         note.duration = note_data.get('duration', note.duration)
                         note.position = note_data.get('position', note.position)
+                        note.rest = note_data.get('rest', note.rest)
                         note.save()
                         notes_to_keep.append(note.id)
                     else:
