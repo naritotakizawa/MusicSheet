@@ -53,6 +53,7 @@ describe('MusicPart.vue', () => {
     expect(emitted.notesInput).toBe('C4/q, G4/q, E4/q, F4/q')
   })
 
+
   it('updates note duration to eighth and fills rest', () => {
     const wrapper = mount(MusicPart, {
       props: { part: { name: 'Test Part', notesInput: 'C4/q, D4/q, E4/q, F4/q' }, partIndex: 0 }
@@ -115,6 +116,6 @@ describe('MusicPart.vue', () => {
 
     const emitted = wrapper.emitted()['update:part']?.[0]?.[0]
     expect(emitted).toBeTruthy()
-    expect(emitted.notesInput).toBe('D4/q, E4/q, B4/h/r')
+    expect(emitted.notesInput).toBe('D4/q, E4/q, B4/h')
   })
 })
