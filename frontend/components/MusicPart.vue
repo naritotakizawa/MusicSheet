@@ -227,7 +227,7 @@ const drawScore = async () => {
       if (note.getCategory && note.getCategory() === 'barnotes') return;
       const noteData = allRenderedNotes[renderedIdx];
       renderedIdx += 1;
-      if (noteData && !noteData.rest && note.getBoundingBox) {
+      if (noteData && note.getBoundingBox) {
         const bbox = note.getBoundingBox();
         if (bbox) {
           renderedNotesInfo.value.push({

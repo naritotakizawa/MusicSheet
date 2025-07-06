@@ -116,6 +116,28 @@ describe('MusicPart.vue', () => {
 
     const emitted = wrapper.emitted()['update:part']?.[0]?.[0]
     expect(emitted).toBeTruthy()
-    expect(emitted.notesInput).toBe('D4/q, E4/q, B4/h')
+    expect(emitted.notesInput).toBe('D4/q, E4/q, B4/h/r')
+  })
+
+  it('uses a rest when filling empty measures', () => {
+    const wrapper = mount(MusicPart, { props: baseProps })
+    const measures = wrapper.vm.splitIntoMeasures([])
+    expect(measures[0][0].rest).toBe(true)
+  })
+
+  it('opens editor when clicking a rest', () => {
+    const wrapper = mount(MusicPart, {
+      props: { part: { name: 'Test Part', notesInput: 'B4/q/r' }, partIndex: 0 }
+    })
+    wrapper.vm.renderedNotesInfo = [{ noteIndex: 0, x: 0, y: 0, width: 20, height: 20 }]
+    const event = {
+      currentTarget: { getBoundingClientRect: () => ({ left: 0, top: 0 }) },
+      clientX: 10,
+      clientY: 10,
+      stopPropagation: vi.fn()
+    }
+    wrapper.vm.handleClickOnScore(event)
+    expect(wrapper.vm.noteMenuVisible).toBe(true)
+    expect(wrapper.vm.selectedNote.rest).toBe(true)
   })
 })
