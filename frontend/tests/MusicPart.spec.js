@@ -53,6 +53,59 @@ describe('MusicPart.vue', () => {
     expect(emitted.notesInput).toBe('C4/q, G4/q, E4/q, F4/q')
   })
 
+
+  it('updates note duration to eighth and fills rest', () => {
+    const wrapper = mount(MusicPart, {
+      props: { part: { name: 'Test Part', notesInput: 'C4/q, D4/q, E4/q, F4/q' }, partIndex: 0 }
+    })
+
+    wrapper.vm.selectedNote = { pitch: 'D', octave: 4, duration: '8', noteIndex: 1 }
+    wrapper.vm.updateSelectedNote()
+
+    const emitted = wrapper.emitted()['update:part']?.[0]?.[0]
+    expect(emitted).toBeTruthy()
+    expect(emitted.notesInput).toBe('C4/q, D4/8, E4/q, F4/q, B4/8/r')
+  })
+
+  it('updates note duration to sixteenth and fills rest', () => {
+    const wrapper = mount(MusicPart, {
+      props: { part: { name: 'Test Part', notesInput: 'C4/q, D4/q, E4/q, F4/q' }, partIndex: 0 }
+    })
+
+    wrapper.vm.selectedNote = { pitch: 'D', octave: 4, duration: '16', noteIndex: 1 }
+    wrapper.vm.updateSelectedNote()
+
+    const emitted = wrapper.emitted()['update:part']?.[0]?.[0]
+    expect(emitted).toBeTruthy()
+    expect(emitted.notesInput).toBe('C4/q, D4/16, E4/q, F4/q, B4/8/r, B4/16/r')
+  })
+
+  it('changes a note to a rest', () => {
+    const wrapper = mount(MusicPart, {
+      props: { part: { name: 'Test Part', notesInput: 'C4/q, D4/q, E4/q' }, partIndex: 0 }
+    })
+
+    wrapper.vm.selectedNote = { pitch: 'B', octave: 4, duration: 'q', rest: true, noteIndex: 1 }
+    wrapper.vm.updateSelectedNote()
+
+    const emitted = wrapper.emitted()['update:part']?.[0]?.[0]
+    expect(emitted).toBeTruthy()
+    expect(emitted.notesInput).toBe('C4/q, B4/q/r, E4/q, B4/q/r')
+  })
+
+  it('changes a rest to a note', () => {
+    const wrapper = mount(MusicPart, {
+      props: { part: { name: 'Test Part', notesInput: 'C4/q, B4/q/r, E4/q' }, partIndex: 0 }
+    })
+
+    wrapper.vm.selectedNote = { pitch: 'D', octave: 4, duration: 'q', rest: false, noteIndex: 1 }
+    wrapper.vm.updateSelectedNote()
+
+    const emitted = wrapper.emitted()['update:part']?.[0]?.[0]
+    expect(emitted).toBeTruthy()
+    expect(emitted.notesInput).toBe('C4/q, D4/q, E4/q, B4/q/r')
+  })
+
   it('deletes selected note and emits changed notes', () => {
     const wrapper = mount(MusicPart, {
       props: { part: { name: 'Test Part', notesInput: 'C4/q, D4/q, E4/q' }, partIndex: 0 }

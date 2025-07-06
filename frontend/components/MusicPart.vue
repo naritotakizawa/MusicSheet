@@ -68,6 +68,10 @@
           <option value="16">16th</option>
         </select>
       </div>
+      <div class="form-check mb-2">
+        <input id="restCheck" type="checkbox" class="form-check-input" v-model="selectedNote.rest">
+        <label for="restCheck" class="form-check-label small">Rest</label>
+      </div>
       <div class="d-flex justify-content-between">
         <button class="btn btn-info btn-sm" @click="updateSelectedNote">Apply</button>
         <button class="btn btn-warning btn-sm" @click="deleteSelectedNote">Delete</button>
@@ -105,12 +109,18 @@ const parseNotesInput = (notesInputString) => {
     .map(noteString => {
       const trimmed = noteString.trim();
       if (!trimmed) return null;
-      const [pitchOctave, duration] = trimmed.split('/');
+      const [pitchOctave, duration, restFlag] = trimmed.split('/');
       if (!pitchOctave || !duration) return null;
       const pitch = pitchOctave.slice(0, -1);
       const octave = parseInt(pitchOctave.slice(-1), 10);
       if (!pitch || isNaN(octave)) return null;
-      return { pitch, octave, duration, originalString: trimmed };
+      return {
+        pitch,
+        octave,
+        duration,
+        rest: restFlag === 'r',
+        originalString: trimmed
+      };
     })
     .filter(Boolean)
     .map((n, idx) => ({ ...n, noteIndex: idx }));
@@ -127,14 +137,20 @@ const splitIntoMeasures = (notesArray) => {
 
   const pushMeasure = () => {
     if (currentBeats < beatsPerMeasure && currentBeats > 0) {
-      const remaining = beatsPerMeasure - currentBeats;
-      if (remaining === 4) {
-        currentMeasure.push({ pitch: 'B', octave: 4, duration: 'w', rest: true });
-      } else if (remaining === 2) {
-        currentMeasure.push({ pitch: 'B', octave: 4, duration: 'h', rest: true });
-      } else if (remaining === 1) {
-        currentMeasure.push({ pitch: 'B', octave: 4, duration: 'q', rest: true });
-      } // For simplicity other values are not handled
+      let remaining = beatsPerMeasure - currentBeats;
+      const restDurations = [
+        { beats: 4, duration: 'w' },
+        { beats: 2, duration: 'h' },
+        { beats: 1, duration: 'q' },
+        { beats: 0.5, duration: '8' },
+        { beats: 0.25, duration: '16' },
+      ];
+      for (const rest of restDurations) {
+        while (remaining >= rest.beats - 1e-8) {
+          currentMeasure.push({ pitch: 'B', octave: 4, duration: rest.duration, rest: true });
+          remaining -= rest.beats;
+        }
+      }
     }
     if (currentMeasure.length === 0) {
       currentMeasure.push({ pitch: 'B', octave: 4, duration: 'w', rest: true });
@@ -272,12 +288,13 @@ const updateSelectedNote = () => {
     pitch: noteToUpdate.pitch,
     octave: noteToUpdate.octave,
     duration: noteToUpdate.duration,
+    rest: noteToUpdate.rest,
   };
 
-  const plainNotes = notesArray.map(n => ({ pitch: n.pitch, octave: n.octave, duration: n.duration }));
+  const plainNotes = notesArray.map(n => ({ pitch: n.pitch, octave: n.octave, duration: n.duration, rest: n.rest }));
   const newMeasures = splitIntoMeasures(plainNotes);
   const newNotesInput = newMeasures
-    .map(m => m.map(n => `${n.pitch}${n.octave}/${n.duration}`).join(', '))
+    .map(m => m.map(n => `${n.pitch}${n.octave}/${n.duration}${n.rest ? '/r' : ''}`).join(', '))
     .join(' | ');
   emit('update:part', { ...props.part, notesInput: newNotesInput });
   closeMenus();
@@ -289,10 +306,10 @@ const deleteSelectedNote = () => {
   const notesArray = parseNotesInput(props.part.notesInput);
   notesArray.splice(selectedNote.value.noteIndex, 1);
 
-  const plainNotes = notesArray.map(n => ({ pitch: n.pitch, octave: n.octave, duration: n.duration }));
+  const plainNotes = notesArray.map(n => ({ pitch: n.pitch, octave: n.octave, duration: n.duration, rest: n.rest }));
   const newMeasures = splitIntoMeasures(plainNotes);
   const newNotesInput = newMeasures
-    .map(m => m.map(n => `${n.pitch}${n.octave}/${n.duration}`).join(', '))
+    .map(m => m.map(n => `${n.pitch}${n.octave}/${n.duration}${n.rest ? '/r' : ''}`).join(', '))
     .join(' | ');
   emit('update:part', { ...props.part, notesInput: newNotesInput });
   closeMenus();
