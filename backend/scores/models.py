@@ -15,8 +15,15 @@ class Part(models.Model):
     def __str__(self):
         return f'{self.name} for {self.score.title}'
 
+class Measure(models.Model):
+    part = models.ForeignKey(Part, related_name='measures', on_delete=models.CASCADE)
+    number = models.PositiveIntegerField()
+
+    def __str__(self):
+        return f'Measure {self.number} of {self.part.name}'
+
 class Note(models.Model):
-    part = models.ForeignKey(Part, related_name='notes', on_delete=models.CASCADE)
+    measure = models.ForeignKey(Measure, related_name='notes', on_delete=models.CASCADE)
     pitch = models.CharField(max_length=10)  # e.g., 'C4', 'G#5'
     duration = models.CharField(max_length=10)  # e.g., 'q', 'h', '8'
     position = models.PositiveIntegerField()

@@ -28,6 +28,17 @@ const { $api } = useNuxtApp();
 const parts = ref([]);
 const scoreId = ref(null);
 
+const notesInputToMeasures = (input) => {
+  if (!input) return [];
+  return input.split('|').map((m, idx) => ({
+    number: idx + 1,
+    notes: m.split(',').map((n, i) => {
+      const [pitch, duration, restFlag] = n.trim().split('/');
+      return { pitch, duration, rest: restFlag === 'r', position: i };
+    })
+  }));
+};
+
 const fetchScore = async () => {
   try {
     const response = await $api.get('/scores/');
@@ -36,9 +47,13 @@ const fetchScore = async () => {
       scoreId.value = fetchedScore.id;
       parts.value = fetchedScore.parts.map(p => ({
         ...p,
-        notesInput: p.notes
-          .map(n => `${n.pitch}/${n.duration}${n.rest ? '/r' : ''}`)
-          .join(', ')
+        notesInput: p.measures
+          .map(m =>
+            m.notes
+              .map(n => `${n.pitch}/${n.duration}${n.rest ? '/r' : ''}`)
+              .join(', ')
+          )
+          .join(' | ')
       }));
     } else {
       // Create a new score if none exists
@@ -55,10 +70,7 @@ const createNewScore = async () => {
   try {
     const partsData = toRaw(parts.value).map(part => ({
       name: part.name,
-      notes: part.notesInput.split(', ').map((note, index) => {
-        const [pitch, duration, restFlag] = note.split('/');
-        return { pitch, duration, rest: restFlag === 'r', position: index };
-      })
+      measures: notesInputToMeasures(part.notesInput)
     }));
 
     const response = await $api.post('/scores/', { title: 'My Music Sheet', parts: partsData });
@@ -66,9 +78,11 @@ const createNewScore = async () => {
     // Update parts with IDs from the server response
     parts.value = response.data.parts.map(p => ({
       ...p,
-      notesInput: p.notes
-        .map(n => `${n.pitch}/${n.duration}${n.rest ? '/r' : ''}`)
-        .join(', ')
+      notesInput: p.measures
+        .map(m => m.notes
+          .map(n => `${n.pitch}/${n.duration}${n.rest ? '/r' : ''}`)
+          .join(', '))
+        .join(' | ')
     }));
   } catch (error) {
     console.error('Error creating new score:', error);
@@ -104,13 +118,7 @@ const updateScore = async () => {
     const partsData = toRaw(parts.value).map(part => ({
       id: part.id,
       name: part.name,
-      notes: (part.notesInput || '')
-        .split(', ')
-        .filter(n => n)
-        .map((note, index) => {
-          const [pitch, duration, restFlag] = note.split('/');
-          return { pitch, duration, rest: restFlag === 'r', position: index };
-        })
+      measures: notesInputToMeasures(part.notesInput)
     }));
     await $api.put(`/scores/${scoreId.value}/`, { title: 'My Music Sheet', parts: partsData });
   } catch (error) {
