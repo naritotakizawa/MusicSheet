@@ -127,14 +127,20 @@ const splitIntoMeasures = (notesArray) => {
 
   const pushMeasure = () => {
     if (currentBeats < beatsPerMeasure && currentBeats > 0) {
-      const remaining = beatsPerMeasure - currentBeats;
-      if (remaining === 4) {
-        currentMeasure.push({ pitch: 'B', octave: 4, duration: 'w', rest: true });
-      } else if (remaining === 2) {
-        currentMeasure.push({ pitch: 'B', octave: 4, duration: 'h', rest: true });
-      } else if (remaining === 1) {
-        currentMeasure.push({ pitch: 'B', octave: 4, duration: 'q', rest: true });
-      } // For simplicity other values are not handled
+      let remaining = beatsPerMeasure - currentBeats;
+      const restDurations = [
+        { beats: 4, duration: 'w' },
+        { beats: 2, duration: 'h' },
+        { beats: 1, duration: 'q' },
+        { beats: 0.5, duration: '8' },
+        { beats: 0.25, duration: '16' },
+      ];
+      for (const rest of restDurations) {
+        while (remaining >= rest.beats - 1e-8) {
+          currentMeasure.push({ pitch: 'B', octave: 4, duration: rest.duration, rest: true });
+          remaining -= rest.beats;
+        }
+      }
     }
     if (currentMeasure.length === 0) {
       currentMeasure.push({ pitch: 'B', octave: 4, duration: 'w', rest: true });
